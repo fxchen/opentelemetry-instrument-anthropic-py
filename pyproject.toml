@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "opentelemetry-instrument-anthropic"
+version = "0.0.1"
+description = "Instruments Anthropic client for OpenTelemetry"
+authors = ["Frank Chen <frxchen@gmail.com>"]
+# readme = "README.md"
+packages = [{include = "opentelemetry", from = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.7.1,<4.0"
+opentelemetry-api = "~=1.18.0"
+opentelemetry-semantic-conventions = "~=0.39b0"
+wrapt = "^1.15.0"
+opentelemetry-instrumentation = "0.39b"
+anthropic = "0.3.8"
+
+[tool.poetry.group.test.dependencies]
+pytest = "*"
+opentelemetry-test-utils = "~=0.39b0"
+
+[tool.poetry.extras]
+instruments = ["anthropic"]
+
+[tool.poetry.plugins."opentelemetry_instrumentor"]
+anthropic = "opentelemetry.instrumentation.anthropic:AnthropicInstrumentor"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
