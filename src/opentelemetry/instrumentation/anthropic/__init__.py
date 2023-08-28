@@ -1,8 +1,9 @@
 from typing import Collection, Optional
-from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
-from opentelemetry import trace
 
 import logging
+
+from opentelemetry import trace
+from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 
 from opentelemetry.instrumentation.anthropic.package import _instruments
 from opentelemetry.instrumentation.anthropic.version import __version__
@@ -27,6 +28,27 @@ def no_none(value):
     if value is None:
         return str(value)
     return value
+
+
+def _set_anthropic_input_attributes(
+    span, name, kwargs, suppress_input_content=False
+):
+    """Capture input params as span attributes."""
+    for key, value in kwargs.items():
+        if suppress_input_content and key == "prompt":
+            continue  # Skip capturing the 'prompt' if suppression flag is true
+        span.set_attribute(f"{name}.input.{key}", no_none(value))
+
+
+def _set_anthropic_response_attributes(
+    span, name, response, suppress_response_data=False
+):
+    """Capture response fields as span attributes."""
+    response_dict = vars(response)
+    for key, value in response_dict.items():
+        if suppress_response_data and key == "completion":
+            continue
+        span.set_attribute(f"{name}.response.{key}", no_none(value))
 
 
 class _InstrumentedAnthropic(anthropic.Anthropic):
@@ -59,6 +81,17 @@ class _InstrumentedAnthropic(anthropic.Anthropic):
                     span.set_attribute(
                         "max_tokens", kwargs.get("max_tokens_to_sample", 0)
                     )
+                    if span.is_recording():
+                        _set_anthropic_input_attributes(
+                            span, "Anthropic", kwargs
+                        )
+
+                    # response = original_func(*args, **kwargs)
+                    # if span.is_recording() and response:
+                    #     _set_anthropic_response_attributes(
+                    #         span, "Anthropic", response
+                    #     )
+
                     return original_func(*args, **kwargs)
             except Exception as e:
                 logger.error(f"Failed to add span: {e}")
