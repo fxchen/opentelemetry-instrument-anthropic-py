@@ -1,5 +1,8 @@
 {
-    "python.analysis.extraPaths": [
-        "./src/opentelemetry/instrumentation"
-    ]
+    "python.analysis.extraPaths": ["./src/opentelemetry/instrumentation"],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true
+    },
+    "black-formatter.args": ["--line-length", "80"]
 }

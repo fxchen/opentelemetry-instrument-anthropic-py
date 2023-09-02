@@ -1,4 +1,4 @@
-from typing import Any, Collection, Dict, Literal, Optional
+from typing import Any, Collection, Dict, Optional
 
 import logging
 
@@ -11,7 +11,7 @@ import anthropic
 
 logger = logging.getLogger(__name__)
 
-SPAN_PREFIX: Literal[""] = "anthropic"
+SPAN_PREFIX: str = "anthropic"
 
 
 def no_none(value: Any) -> Any:
@@ -33,11 +33,15 @@ class _InstrumentedAnthropic(anthropic.Anthropic):
     def __init__(
         self,
         tracer_provider: Optional[trace.TracerProvider] = None,
+        suppress_input_content: bool = False,
+        suppress_response_data: bool = False,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._tracer_provider = tracer_provider
+        self._suppress_input_content = suppress_input_content
+        self._suppress_response_data = suppress_response_data
         self.completions.create = self._wrap_completions_create(
             self.completions.create
         )
@@ -54,11 +58,14 @@ class _InstrumentedAnthropic(anthropic.Anthropic):
                     f"{SPAN_PREFIX}.completions.create"
                 ) as span:
                     if span.is_recording():
+                        suppress_keys = (
+                            {"prompt"} if self._suppress_input_content else None
+                        )
                         set_span_attributes(
                             span,
                             f"{SPAN_PREFIX}.input",
                             kwargs,
-                            suppress_keys={"prompt"},
+                            suppress_keys=suppress_keys,
                         )
 
                     # Handle streaming responses
@@ -72,8 +79,16 @@ class _InstrumentedAnthropic(anthropic.Anthropic):
                     # Handle standard responses
                     response = original_func(*args, **kwargs)
                     if span.is_recording() and response:
+                        suppress_keys = (
+                            {"completion"}
+                            if self._suppress_response_data
+                            else None
+                        )
                         set_span_attributes(
-                            span, f"{SPAN_PREFIX}.response", vars(response)
+                            span,
+                            f"{SPAN_PREFIX}.response",
+                            vars(response),
+                            suppress_keys=suppress_keys,
                         )
 
                     return response
@@ -100,16 +115,39 @@ class AnthropicInstrumentor(BaseInstrumentor):
 
     def _instrument(self, **kwargs):
         tracer_provider = kwargs.get("tracer_provider")
-        self._replace_anthropic_class(tracer_provider)
+        suppress_input_content = kwargs.get("suppress_input_content", False)
+        suppress_response_data = kwargs.get("suppress_response_data", False)
+        self._replace_anthropic_class(
+            tracer_provider, suppress_input_content, suppress_response_data
+        )
 
     def _uninstrument(self, **kwargs):
         self._restore_original_anthropic_class()
 
     def _replace_anthropic_class(
-        self, tracer_provider: Optional[trace.TracerProvider] = None
+        self,
+        tracer_provider: Optional[trace.TracerProvider] = None,
+        suppress_input_content: bool = False,
+        suppress_response_data: bool = False,
     ):
         """Replace the original Anthropic class with the instrumented one."""
-        anthropic.Anthropic = _InstrumentedAnthropic
+
+        self.original_anthropic = (
+            anthropic.Anthropic
+        )  # Store the original class
+
+        class WrappedAnthropic(_InstrumentedAnthropic):
+            def __init__(self, *args, **kwargs):
+                super().__init__(
+                    tracer_provider=tracer_provider,
+                    suppress_input_content=suppress_input_content,
+                    suppress_response_data=suppress_response_data,
+                    *args,
+                    **kwargs,
+                )
+
+        WrappedAnthropic.__name__ = "Anthropic"
+        anthropic.Anthropic = WrappedAnthropic
 
     def _restore_original_anthropic_class(self):
         """Restore the original Anthropic class."""
