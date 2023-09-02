@@ -1,13 +1,14 @@
 from typing import Any, Collection, Dict, Optional
 
+import anthropic
 import logging
 
 from opentelemetry import trace
+from opentelemetry.trace import SpanKind
+from opentelemetry.trace.status import Status, StatusCode
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
-
 from opentelemetry.instrumentation.anthropic.package import _instruments
 from opentelemetry.instrumentation.anthropic.version import __version__
-import anthropic
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class _InstrumentedAnthropic(anthropic.Anthropic):
             )
             try:
                 with tracer.start_as_current_span(
-                    f"{SPAN_PREFIX}.completions.create"
+                    f"{SPAN_PREFIX}.completions.create", kind=SpanKind.CLIENT
                 ) as span:
                     if span.is_recording():
                         suppress_keys = (
@@ -74,6 +75,7 @@ class _InstrumentedAnthropic(anthropic.Anthropic):
                             span.set_attribute(
                                 f"{SPAN_PREFIX}.response.stream", no_none(True)
                             )
+                            span.set_status(Status(StatusCode.OK))
                         return original_func(*args, **kwargs)
 
                     # Handle standard responses
@@ -90,6 +92,7 @@ class _InstrumentedAnthropic(anthropic.Anthropic):
                             vars(response),
                             suppress_keys=suppress_keys,
                         )
+                        span.set_status(Status(StatusCode.OK))
 
                     return response
 
