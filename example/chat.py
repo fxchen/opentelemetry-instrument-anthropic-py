@@ -7,38 +7,23 @@ from opentelemetry import trace
 
 tracer = trace.get_tracer("chat.demo")
 
-DEFAULT_ANTHROPIC_MODEL = "claude-instant-1.2"
-
 client = Anthropic()
 
-
-def prepare_anthropic_kwargs(model: str, prompt: str, max_tokens: int) -> dict:
-    """
-    Prepares the keyword arguments for the Claude API call.
-
-    Args:
-      prompt: str, the prompt to use for the API call
-      model: str, the model to use for the API call
-      max_tokens: int, the maximum number of tokens to use for the API call
-
-    Returns:
-      dict: The keyword arguments for the API call
-    """
-    kwargs = {
-        "model": model,
-        "max_tokens_to_sample": max_tokens,
-        "prompt": f"{HUMAN_PROMPT}\n{prompt}\n{AI_PROMPT}",
-    }
-    return kwargs
-
-
 with tracer.start_as_current_span("example") as span:
-    client = Anthropic()
-    span.set_attribute("attr1", 12)
-    kwargs = prepare_anthropic_kwargs(
-        DEFAULT_ANTHROPIC_MODEL, "hello world", 2048
+    span.set_attribute("example.attr", 12)
+
+    response = client.completions.create(
+        prompt=f"{HUMAN_PROMPT}\nHello world\n{AI_PROMPT}",
+        model="claude-instant-1.2",
+        max_tokens_to_sample=2048,
     )
-
-    response = client.completions.create(**kwargs)
-
     print(response.completion.strip())
+
+    stream = client.completions.create(
+        prompt=f"{HUMAN_PROMPT} Hello there {AI_PROMPT}",
+        max_tokens_to_sample=300,
+        model="claude-2",
+        stream=True,
+    )
+    for completion in stream:
+        print(completion.completion, end="", flush=True)

@@ -1,4 +1,4 @@
-from typing import Collection, Optional
+from typing import Any, Collection, Dict, Literal, Optional
 
 import logging
 
@@ -11,44 +11,22 @@ import anthropic
 
 logger = logging.getLogger(__name__)
 
-TO_WRAP = [
-    {
-        "object": "Anthropic.completions",
-        "method": "create",
-        "span_name": "anthropic.completions.create",
-    },
-]
+SPAN_PREFIX: Literal[""] = "anthropic"
 
 
-def no_none(value):
-    """
-    OTEL Attributes cannot be NoneType.
-    If NoneType return string 'None'.
-    """
-    if value is None:
-        return str(value)
-    return value
+def no_none(value: Any) -> Any:
+    """Replace None with string 'None' for OTEL attributes."""
+    return str(value) if value is None else value
 
 
-def _set_anthropic_input_attributes(
-    span, name, kwargs, suppress_input_content=False
+def set_span_attributes(
+    span, prefix: str, data: Dict[str, Any], suppress_keys: Optional[set] = None
 ):
-    """Capture input params as span attributes."""
-    for key, value in kwargs.items():
-        if suppress_input_content and key == "prompt":
-            continue  # Skip capturing the 'prompt' if suppression flag is true
-        span.set_attribute(f"{name}.input.{key}", no_none(value))
-
-
-def _set_anthropic_response_attributes(
-    span, name, response, suppress_response_data=False
-):
-    """Capture response fields as span attributes."""
-    response_dict = vars(response)
-    for key, value in response_dict.items():
-        if suppress_response_data and key == "completion":
+    """Set attributes on a span based on a dictionary."""
+    for key, value in data.items():
+        if suppress_keys and key in suppress_keys:
             continue
-        span.set_attribute(f"{name}.response.{key}", no_none(value))
+        span.set_attribute(f"{prefix}.{key}", no_none(value))
 
 
 class _InstrumentedAnthropic(anthropic.Anthropic):
@@ -69,30 +47,37 @@ class _InstrumentedAnthropic(anthropic.Anthropic):
 
         def wrapper(*args, **kwargs):
             tracer = trace.get_tracer(
-                __name__,
-                __version__,
-                self._tracer_provider,
+                __name__, __version__, self._tracer_provider
             )
             try:
                 with tracer.start_as_current_span(
-                    "Anthropic.completions.create"
+                    f"{SPAN_PREFIX}.completions.create"
                 ) as span:
-                    span.set_attribute("model", kwargs.get("model", "unknown"))
-                    span.set_attribute(
-                        "max_tokens", kwargs.get("max_tokens_to_sample", 0)
-                    )
                     if span.is_recording():
-                        _set_anthropic_input_attributes(
-                            span, "Anthropic", kwargs
+                        set_span_attributes(
+                            span,
+                            f"{SPAN_PREFIX}.input",
+                            kwargs,
+                            suppress_keys={"prompt"},
                         )
 
-                    # response = original_func(*args, **kwargs)
-                    # if span.is_recording() and response:
-                    #     _set_anthropic_response_attributes(
-                    #         span, "Anthropic", response
-                    #     )
+                    # Handle streaming responses
+                    if kwargs.get("stream", False):
+                        if span.is_recording():
+                            span.set_attribute(
+                                f"{SPAN_PREFIX}.response.stream", no_none(True)
+                            )
+                        return original_func(*args, **kwargs)
 
-                    return original_func(*args, **kwargs)
+                    # Handle standard responses
+                    response = original_func(*args, **kwargs)
+                    if span.is_recording() and response:
+                        set_span_attributes(
+                            span, f"{SPAN_PREFIX}.response", vars(response)
+                        )
+
+                    return response
+
             except Exception as e:
                 logger.error(f"Failed to add span: {e}")
                 return original_func(*args, **kwargs)
