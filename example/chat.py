@@ -16,6 +16,7 @@ with tracer.start_as_current_span("example") as span:
         prompt=f"{HUMAN_PROMPT}\nHello world\n{AI_PROMPT}",
         model="claude-instant-1.2",
         max_tokens_to_sample=2048,
+        top_p=0.1,
     )
     print(response.completion.strip())
 
