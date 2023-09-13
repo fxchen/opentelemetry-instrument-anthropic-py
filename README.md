@@ -36,7 +36,7 @@ client.completions.create(
     )
 ```
 
-## 🔗 Example [chat.py](./example)
+## 🔗 Example [chat.py]([./example](https://github.com/fxchen/opentelemetry-instrument-anthropic-py/tree/main/example))
 
 In this folder there's a readme on how to:
 
