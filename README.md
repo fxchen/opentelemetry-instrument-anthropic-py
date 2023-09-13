@@ -36,7 +36,7 @@ client.completions.create(
     )
 ```
 
-## 🔗 Example ((chat.py)[./example])
+## 🔗 Example [chat.py](./example)
 
 In this folder there's a readme on how to:
 
@@ -45,4 +45,4 @@ In this folder there's a readme on how to:
 
 # Acknowledgments
 
-Thank you very much to (Philip Carter)[https://github.com/cartermp] and instrumentation by the OpenTelemetry Community! This instrumentation was heavily inspired by conversation and this (OpenAI library)[https://github.com/cartermp/opentelemetry-instrument-openai-py/tree/main].
+Thank you very much to [Phillip Carter](https://github.com/cartermp) and instrumentation by the OpenTelemetry Community! This instrumentation was heavily inspired by conversation and this [OpenAI library](https://github.com/cartermp/opentelemetry-instrument-openai-py/tree/main).
