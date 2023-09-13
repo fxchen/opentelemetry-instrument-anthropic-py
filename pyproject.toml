@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "opentelemetry-instrument-anthropic"
-version = "0.0.1"
+version = "0.0.2"
 description = "Instruments Anthropic client for OpenTelemetry"
 authors = ["Frank Chen <frxchen@gmail.com>"]
 readme = "README.md"

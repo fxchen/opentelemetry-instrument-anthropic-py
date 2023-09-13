@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "chat-example"
-version = "0.0.1"
+version = "0.0.2"
 description = "Testing chat completion"
 authors = ["Frank Chen <frxchen@gmail.com>"]
 readme = "README.md"
