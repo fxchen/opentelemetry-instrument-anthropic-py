@@ -6,18 +6,15 @@ Project site: https://github.com/fxchen/opentelemetry-instrument-anthropic-py
 
 # Usage
 
-**Installaion**
+**Installation**
 
 ```
 poetry add opentelemetry-instrument-anthropic
-poetry run opentelemetry-bootstrap -a install
-poetry run opentelemetry-instrument python your_app.py
 ```
 
 **Using auto instrumentation agent**
 
 ```
-poetry add opentelemetry-instrument-anthropic
 poetry run opentelemetry-bootstrap -a install
 poetry run opentelemetry-instrument python your_app.py
 ```
